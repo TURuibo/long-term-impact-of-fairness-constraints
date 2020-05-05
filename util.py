@@ -179,7 +179,32 @@ def eva_classifier_eqopt(X_train,y_train,sensitive_features_train):
     pr_eqopt["Caucasian"],acc_eqopt["Caucasian"],tpr_eqopt["Caucasian"],fpr_eqopt["Caucasian"] = eqopt_group1.output()
 
     return pr_eqopt,acc_eqopt,tpr_eqopt,fpr_eqopt
+
+def eva_classifier_eo(X_train,y_train,sensitive_features_train):
+    # (Fair) optimal classifier
+    X_train = X_train.reset_index(drop = True)
+    y_train = y_train.reset_index(drop = True)
+    sensitive_features_train = sensitive_features_train.reset_index(drop = True)
+
+
+    # ******** UN ********
+    estimator = LogisticRegression(solver='liblinear')
+    estimator_wrapper = LogisticRegressionAsRegression(estimator).fit(X_train, y_train)
+    estimator.fit(X_train, y_train)
+    predictions_train = estimator.predict(X_train)
+
+     # ********EO********
+    postprocessed_predictor_EO = ThresholdOptimizer(
+        estimator=estimator_wrapper,
+        constraints="equalized_odds",
+        prefit=True)
+    postprocessed_predictor_EO.fit(X_train, y_train, sensitive_features=sensitive_features_train)
+    fairness_aware_predictions_EO_train = postprocessed_predictor_EO.predict(X_train, sensitive_features=sensitive_features_train)
+    pr,acc,tpr,fpr = find_proportions(X_train, sensitive_features_train, fairness_aware_predictions_EO_train, y_train)
+
+    return pr,acc,tpr,fpr
     
+
 # ********* The following part is not changed *********
 def _reformat_and_group_data(sensitive_features, labels, scores,sensitive_feature_names=None):
     """Reformats the data into a new pandas.DataFrame and group by sensitive feature values.
