@@ -106,6 +106,80 @@ def samplePath(alpha0,alpha1,P0,T,X,y,sensitive_features,subgroups_indices):
 #     T_label1_pred0_group1 = 0.5
 #     T_label1_pred1_group1 = 0.3
 
+def eva_classifier(X_train,y_train,sensitive_features_train):
+    # (Fair) optimal classifier
+    X_train = X_train.reset_index(drop = True)
+    y_train = y_train.reset_index(drop = True)
+    sensitive_features_train = sensitive_features_train.reset_index(drop = True)
+
+
+    # ******** UN ********
+    estimator = LogisticRegression(solver='liblinear')
+    estimator_wrapper = LogisticRegressionAsRegression(estimator).fit(X_train, y_train)
+    estimator.fit(X_train, y_train)
+    predictions_train = estimator.predict(X_train)
+
+    pr_un,acc_un,tpr_un,fpr_un = find_proportions(X_train, sensitive_features_train, predictions_train, y_train)
+ 
+    return pr_un,acc_un,tpr_un,fpr_un
+
+def eva_classifier_dp(X_train,y_train,sensitive_features_train):
+    # (Fair) optimal classifier
+    X_train = X_train.reset_index(drop = True)
+    y_train = y_train.reset_index(drop = True)
+    sensitive_features_train = sensitive_features_train.reset_index(drop = True)
+
+
+    # ******** UN ********
+    estimator = LogisticRegression(solver='liblinear')
+    estimator_wrapper = LogisticRegressionAsRegression(estimator).fit(X_train, y_train)
+    estimator.fit(X_train, y_train)
+    predictions_train = estimator.predict(X_train)
+
+    # ******** DP ********
+    postprocessed_predictor_DP = ThresholdOptimizer(
+        estimator=estimator_wrapper,
+        constraints="demographic_parity",
+        prefit=True)
+    postprocessed_predictor_DP.fit(X_train, y_train, sensitive_features=sensitive_features_train)
+    fairness_aware_predictions_DP_train = postprocessed_predictor_DP.predict(X_train, sensitive_features=sensitive_features_train)
+    pr_dp,acc_dp,tpr_dp,fpr_dp = find_proportions(X_train, sensitive_features_train, fairness_aware_predictions_DP_train, y_train)
+    
+    return pr_dp,acc_dp,tpr_dp,fpr_dp
+
+def eva_classifier_eqopt(X_train,y_train,sensitive_features_train):
+    # (Fair) optimal classifier
+    X_train = X_train.reset_index(drop = True)
+    y_train = y_train.reset_index(drop = True)
+    sensitive_features_train = sensitive_features_train.reset_index(drop = True)
+
+
+    # ******** UN ********
+    estimator = LogisticRegression(solver='liblinear')
+    estimator_wrapper = LogisticRegressionAsRegression(estimator).fit(X_train, y_train)
+    estimator.fit(X_train, y_train)
+    predictions_train = estimator.predict(X_train)
+
+    # ******** EqOpt ************
+
+    data_grouped_by_sensitive_feature = _reformat_and_group_data(sensitive_features_train, y_train.astype(int),predictions_train.astype(int))
+
+    group0 = data_grouped_by_sensitive_feature.get_group("African-American")
+    group1 = data_grouped_by_sensitive_feature.get_group("Caucasian")
+    group0_model = Model(group0['score'].to_numpy(), group0['label'].to_numpy())
+    group1_model = Model(group1['score'].to_numpy(), group1['label'].to_numpy())
+
+    # Find mixing rates for equalized odds models
+    _, _, mix_rates = Model.eq_odds(group0_model, group1_model)
+
+    # Apply the mixing rates to the test models
+    eqopt_group0, eqopt_group1 = Model.eq_odds(group0_model,group1_model,mix_rates)
+    pr_eqopt,acc_eqopt,tpr_eqopt,fpr_eqopt = {},{},{},{}
+    pr_eqopt["African-American"],acc_eqopt["African-American"],tpr_eqopt["African-American"],fpr_eqopt["African-American"] = eqopt_group0.output()
+    pr_eqopt["Caucasian"],acc_eqopt["Caucasian"],tpr_eqopt["Caucasian"],fpr_eqopt["Caucasian"] = eqopt_group1.output()
+
+    return pr_eqopt,acc_eqopt,tpr_eqopt,fpr_eqopt
+    
 # ********* The following part is not changed *********
 def _reformat_and_group_data(sensitive_features, labels, scores,sensitive_feature_names=None):
     """Reformats the data into a new pandas.DataFrame and group by sensitive feature values.
@@ -195,23 +269,6 @@ class LogisticRegressionAsRegression(BaseEstimator, ClassifierMixin):
         # use predict_proba to get real values instead of 0/1, select only prob for 1
         scores = self.logistic_regression_estimator_.predict_proba(X)[:,1]
         return scores
-
-def eva_classifier(X_train,y_train,sensitive_features_train):
-    # (Fair) optimal classifier
-    X_train = X_train.reset_index(drop = True)
-    y_train = y_train.reset_index(drop = True)
-    sensitive_features_train = sensitive_features_train.reset_index(drop = True)
-
-
-    # ******** UN ********
-    estimator = LogisticRegression(solver='liblinear')
-    estimator_wrapper = LogisticRegressionAsRegression(estimator).fit(X_train, y_train)
-    estimator.fit(X_train, y_train)
-    predictions_train = estimator.predict(X_train)
-
-    pr_un,acc_un,tpr_un,fpr_un = find_proportions(X_train, sensitive_features_train, predictions_train, y_train)
- 
-    return pr_un,acc_un,tpr_un,fpr_un
 
 def find_Classifier(X_train,y_train,sensitive_features_train):
     # (Fair) optimal classifier
