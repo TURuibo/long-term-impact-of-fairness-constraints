@@ -61,7 +61,7 @@ def samplePath(alpha0,alpha1,P0,T,X,y,sensitive_features,subgroups_indices):
     t = 0
     horizon = 10
     while t < horizon:
-        t+=1
+        t += 1
         ratio = P0*(1-alpha0),(1-P0)*(1-alpha1),P0*alpha0,(1-P0)*alpha1  # r_label0_group0,r_label0_group1,r_label1_group0,r_label1_group1 
         # sample individuals from 4 sub-groups
         X_train,y_train,sensitive_features_train = dataSelection(X,y,sensitive_features,subgroups_indices,ratio)
@@ -96,15 +96,6 @@ def samplePath(alpha0,alpha1,P0,T,X,y,sensitive_features,subgroups_indices):
                                           T, group = 0))
         
     return alpha_group1_UN,alpha_group1_EqOpt,alpha_group1_DP,alpha_group0_UN,alpha_group0_EqOpt,alpha_group0_DP
-#     T_label0_pred0_group0 = 0.7
-#     T_label0_pred1_group0 = 0.5
-#     T_label1_pred0_group0 = 0.5
-#     T_label1_pred1_group0 = 0.1
-
-#     T_label0_pred0_group1 = 0.9 # "Caucasian"
-#     T_label0_pred1_group1 = 0.5
-#     T_label1_pred0_group1 = 0.5
-#     T_label1_pred1_group1 = 0.3
 
 def eva_classifier(X_train,y_train,sensitive_features_train):
     # (Fair) optimal classifier
@@ -118,7 +109,6 @@ def eva_classifier(X_train,y_train,sensitive_features_train):
     estimator_wrapper = LogisticRegressionAsRegression(estimator).fit(X_train, y_train)
     estimator.fit(X_train, y_train)
     predictions_train = estimator.predict(X_train)
-
     pr_un,acc_un,tpr_un,fpr_un = find_proportions(X_train, sensitive_features_train, predictions_train, y_train)
  
     return pr_un,acc_un,tpr_un,fpr_un
