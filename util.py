@@ -47,14 +47,6 @@ def get_lable_group_index(X,y,sensitive_features):
 
     return list(index_label0_group0),list(index_label0_group1),list(index_label1_group0),list(index_label1_group1)
 
-def transition(alpha,tpr,fpr,T, group):
-    g0 = T[0,0,group]*(1-fpr) + T[0,1,group]*fpr
-    g1 = T[1,0,group]*(1-tpr) + T[1,1,group]*tpr
-    return alpha*g1 + (1-alpha)*g0
-#     g0 = T_label0_pred0*(1-fpr) + T_label0_pred1*fpr
-#     g1 = T_label1_pred0*(1-tpr) + T_label1_pred1*tpr
-#     return alpha*g1 + (1-alpha)*g0
-
 def samplePath(alpha0,alpha1,P0,T,X,y,sensitive_features,subgroups_indices):
     alpha_group0_UN,alpha_group0_EqOpt,alpha_group0_DP = [alpha0],[alpha0],[alpha0]
     alpha_group1_UN,alpha_group1_EqOpt,alpha_group1_DP = [alpha1],[alpha1],[alpha1]
