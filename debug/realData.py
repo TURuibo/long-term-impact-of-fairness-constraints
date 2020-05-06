@@ -199,7 +199,6 @@ def dataSelection(X,y,sensitive_features,indices_sub,ratio):
     return X_train,y_train,sensitive_features_train
 
 
-
 def transition(alpha,tpr,fpr,T_label0_pred0,T_label0_pred1,T_label1_pred0,T_label1_pred1):
     g0 = T_label0_pred0*(1-fpr) + T_label0_pred1*fpr
     g1 = T_label1_pred0*(1-tpr) + T_label1_pred1*tpr

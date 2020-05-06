@@ -47,48 +47,6 @@ def get_lable_group_index(X,y,sensitive_features):
 
     return list(index_label0_group0),list(index_label0_group1),list(index_label1_group0),list(index_label1_group1)
 
-def samplePath(alpha0,alpha1,P0,T,X,y,sensitive_features,subgroups_indices):
-    alpha_group0_UN,alpha_group0_EqOpt,alpha_group0_DP = [alpha0],[alpha0],[alpha0]
-    alpha_group1_UN,alpha_group1_EqOpt,alpha_group1_DP = [alpha1],[alpha1],[alpha1]
-    t = 0
-    horizon = 10
-    while t < horizon:
-        t += 1
-        ratio = P0*(1-alpha0),(1-P0)*(1-alpha1),P0*alpha0,(1-P0)*alpha1  # r_label0_group0,r_label0_group1,r_label1_group0,r_label1_group1 
-        # sample individuals from 4 sub-groups
-        X_train,y_train,sensitive_features_train = dataSelection(X,y,sensitive_features,subgroups_indices,ratio)
-        # train (fair) classifiers
-        pr_un,acc_un,tpr_un,fpr_un,pr_eqopt,acc_eqopt,tpr_eqopt,fpr_eqopt,pr_dp,acc_dp,tpr_dp,fpr_dp \
-        = find_Classifier(X_train,y_train,sensitive_features_train)
-        
-
-        # transitions
-        alpha_group1_UN.append(transition(alpha_group1_UN[-1],
-                                          tpr_un["Caucasian"],fpr_un["Caucasian"],
-                                          T, group = 1))
-        
-        alpha_group1_EqOpt.append(transition(alpha_group1_EqOpt[-1],
-                                             tpr_eqopt["Caucasian"],fpr_eqopt["Caucasian"],
-                                             T, group = 1))
-        
-        alpha_group1_DP.append(transition(alpha_group1_DP[-1],
-                                          tpr_dp["Caucasian"],fpr_dp["Caucasian"],
-                                          T, group = 1))
-        
-        alpha_group0_UN.append(transition(alpha_group0_UN[-1],
-                                          tpr_un["African-American"],fpr_un["African-American"],
-                                          T, group = 0))
-        
-        alpha_group0_EqOpt.append(transition(alpha_group0_EqOpt[-1],
-                                             tpr_eqopt["African-American"],fpr_eqopt["African-American"],
-                                             T, group = 0))
-        
-        alpha_group0_DP.append(transition(alpha_group0_DP[-1],
-                                          tpr_dp["African-American"],fpr_dp["African-American"],
-                                          T, group = 0))
-        
-    return alpha_group1_UN,alpha_group1_EqOpt,alpha_group1_DP,alpha_group0_UN,alpha_group0_EqOpt,alpha_group0_DP
-
 def eva_classifier(X_train,y_train,sensitive_features_train):
     # (Fair) optimal classifier
     X_train = X_train.reset_index(drop = True)
@@ -185,7 +143,71 @@ def eva_classifier_eo(X_train,y_train,sensitive_features_train):
     pr,acc,tpr,fpr = find_proportions(X_train, sensitive_features_train, fairness_aware_predictions_EO_train, y_train)
 
     return pr,acc,tpr,fpr
+
+def find_proportions(X, sensitive_features, y_pred, y=None):
+        
+    indices = {}
+    positive_indices = {}
+    negative_indices = {}
+    recidivism_count = {}
+    pr = {}
+    acc = {}
+    tpr = {}
+    fpr = {}
+
+    groups = np.unique(sensitive_features.values)
     
+    for index, group in enumerate(groups):
+   
+        indices[group] = sensitive_features.index[sensitive_features == group]
+        recidivism_count[group] = sum(y_pred[indices[group]])
+        pr[group] = recidivism_count[group]/len(indices[group])
+        
+        if y is not None:
+            positive_indices[group] = sensitive_features.index[(sensitive_features == group) & (y == 1)]
+            negative_indices[group] = sensitive_features.index[(sensitive_features == group) & (y == 0)]
+            prob_1 = sum(y_pred[positive_indices[group]])/len(positive_indices[group])
+            prob_0 = sum(y_pred[negative_indices[group]])/len(negative_indices[group])
+            acc[group] = 1-((1-prob_1)*len(positive_indices[group]) + prob_0*len(negative_indices[group]))/len(indices[group])
+            tpr[group] = prob_1
+            fpr[group] = prob_0
+
+    return pr,acc,tpr,fpr    
+
+def data_resampling(X,y,sensitive_features,indices_sub,ratio):
+    index_label0_group0,index_label0_group1,index_label1_group0,index_label1_group1 = indices_sub
+    r_label0_group0,r_label0_group1,r_label1_group0,r_label1_group1 = ratio
+    N = min(len(index_label0_group0)/r_label0_group0,len(index_label0_group1)/r_label0_group1,len(index_label1_group0)/r_label1_group0,len(index_label1_group1)/r_label1_group1)
+    
+    I_label0_group0 = random.sample(index_label0_group0,int(N*r_label0_group0))
+    I_label0_group1 = random.sample(index_label0_group1,int(N*r_label0_group1))
+    I_label1_group0 = random.sample(index_label1_group0,int(N*r_label1_group0))
+    I_label1_group1 = random.sample(index_label1_group1,int(N*r_label1_group1))
+    
+    X_train = X.iloc[I_label0_group0+I_label0_group1+I_label1_group0+I_label1_group1,:]    
+    y_train = y.iloc[I_label0_group0+I_label0_group1+I_label1_group0+I_label1_group1]
+    sensitive_features_train = sensitive_features.iloc[I_label0_group0+I_label0_group1+I_label1_group0+I_label1_group1]
+
+    return X_train,y_train,sensitive_features_train
+
+class LogisticRegressionAsRegression(BaseEstimator, ClassifierMixin):
+    def __init__(self, logistic_regression_estimator):
+        self.logistic_regression_estimator = logistic_regression_estimator
+    
+    def fit(self, X, y):
+        try:
+            check_is_fitted(self.logistic_regression_estimator)
+            self.logistic_regression_estimator_ = self.logistic_regression_estimator
+        except NotFittedError:
+            self.logistic_regression_estimator_ = clone(
+                self.logistic_regression_estimator).fit(X, y)
+        return self
+    
+    def predict(self, X):
+        # use predict_proba to get real values instead of 0/1, select only prob for 1
+        scores = self.logistic_regression_estimator_.predict_proba(X)[:,1]
+        return scores
+
 
 # ********* The following part is not changed *********
 def _reformat_and_group_data(sensitive_features, labels, scores,sensitive_feature_names=None):
@@ -223,167 +245,6 @@ def _reformat_and_group_data(sensitive_features, labels, scores,sensitive_featur
     _reformat_data_into_dict(LABEL_KEY, data_dict, labels)
 
     return pd.DataFrame(data_dict).groupby(sensitive_feature_name)
-
-def find_proportions(X, sensitive_features, y_pred, y=None):
-        
-    indices = {}
-    positive_indices = {}
-    negative_indices = {}
-    recidivism_count = {}
-    pr = {}
-    acc = {}
-    tpr = {}
-    fpr = {}
-
-    groups = np.unique(sensitive_features.values)
-    
-    for index, group in enumerate(groups):
-   
-        indices[group] = sensitive_features.index[sensitive_features == group]
-        recidivism_count[group] = sum(y_pred[indices[group]])
-        pr[group] = recidivism_count[group]/len(indices[group])
-        
-        #print('PR:\t%.3f' % pr[group])
-        
-        if y is not None:
-            positive_indices[group] = sensitive_features.index[(sensitive_features == group) & (y == 1)]
-            negative_indices[group] = sensitive_features.index[(sensitive_features == group) & (y == 0)]
-            prob_1 = sum(y_pred[positive_indices[group]])/len(positive_indices[group])
-            prob_0 = sum(y_pred[negative_indices[group]])/len(negative_indices[group])
-            acc[group] = 1-((1-prob_1)*len(positive_indices[group]) + prob_0*len(negative_indices[group]))/len(indices[group])
-            tpr[group] = prob_1
-            fpr[group] = prob_0
-            #print('TPR:\t%.3f' % prob_1)
-            #print('FPR:\t%.3f' % prob_0)
-            #print('accuracy:\t%.3f' % acc)
-
-    return pr,acc,tpr,fpr
-
-class LogisticRegressionAsRegression(BaseEstimator, ClassifierMixin):
-    def __init__(self, logistic_regression_estimator):
-        self.logistic_regression_estimator = logistic_regression_estimator
-    
-    def fit(self, X, y):
-        try:
-            check_is_fitted(self.logistic_regression_estimator)
-            self.logistic_regression_estimator_ = self.logistic_regression_estimator
-        except NotFittedError:
-            self.logistic_regression_estimator_ = clone(
-                self.logistic_regression_estimator).fit(X, y)
-        return self
-    
-    def predict(self, X):
-        # use predict_proba to get real values instead of 0/1, select only prob for 1
-        scores = self.logistic_regression_estimator_.predict_proba(X)[:,1]
-        return scores
-
-def find_Classifier(X_train,y_train,sensitive_features_train):
-    # (Fair) optimal classifier
-    X_train = X_train.reset_index(drop = True)
-    y_train = y_train.reset_index(drop = True)
-    sensitive_features_train = sensitive_features_train.reset_index(drop = True)
-
-
-    # ******** UN ********
-    estimator = LogisticRegression(solver='liblinear')
-    estimator_wrapper = LogisticRegressionAsRegression(estimator).fit(X_train, y_train)
-    estimator.fit(X_train, y_train)
-    predictions_train = estimator.predict(X_train)
-
-    pr_un,acc_un,tpr_un,fpr_un = find_proportions(X_train, sensitive_features_train, predictions_train, y_train)
-    '''
-    # ********EO********
-    postprocessed_predictor_EO = ThresholdOptimizer(
-        estimator=estimator_wrapper,
-        constraints="equalized_odds",
-        prefit=True)
-    postprocessed_predictor_EO.fit(X_train, y_train, sensitive_features=sensitive_features_train)
-    fairness_aware_predictions_EO_train = postprocessed_predictor_EO.predict(X_train, sensitive_features=sensitive_features_train)
-    pr,acc,tpr,fpr = find_proportions(X_train, sensitive_features_train, fairness_aware_predictions_EO_train, y_train)
-    '''
-
-    # ******** DP ********
-    postprocessed_predictor_DP = ThresholdOptimizer(
-        estimator=estimator_wrapper,
-        constraints="demographic_parity",
-        prefit=True)
-    postprocessed_predictor_DP.fit(X_train, y_train, sensitive_features=sensitive_features_train)
-    fairness_aware_predictions_DP_train = postprocessed_predictor_DP.predict(X_train, sensitive_features=sensitive_features_train)
-    pr_dp,acc_dp,tpr_dp,fpr_dp = find_proportions(X_train, sensitive_features_train, fairness_aware_predictions_DP_train, y_train)
-
-    # ******** EqOpt ************
-
-
-    data_grouped_by_sensitive_feature = _reformat_and_group_data(sensitive_features_train, y_train.astype(int),predictions_train.astype(int))
-
-    group0 = data_grouped_by_sensitive_feature.get_group("African-American")
-    group1 = data_grouped_by_sensitive_feature.get_group("Caucasian")
-    group0_model = Model(group0['score'].to_numpy(), group0['label'].to_numpy())
-    group1_model = Model(group1['score'].to_numpy(), group1['label'].to_numpy())
-
-    # Find mixing rates for equalized odds models
-    _, _, mix_rates = Model.eq_odds(group0_model, group1_model)
-
-    # Apply the mixing rates to the test models
-    eqopt_group0, eqopt_group1 = Model.eq_odds(group0_model,group1_model,mix_rates)
-    pr_eqopt,acc_eqopt,tpr_eqopt,fpr_eqopt = {},{},{},{}
-    pr_eqopt["African-American"],acc_eqopt["African-American"],tpr_eqopt["African-American"],fpr_eqopt["African-American"] = eqopt_group0.output()
-    pr_eqopt["Caucasian"],acc_eqopt["Caucasian"],tpr_eqopt["Caucasian"],fpr_eqopt["Caucasian"] = eqopt_group1.output()
-
-    return pr_un,acc_un,tpr_un,fpr_un,pr_eqopt,acc_eqopt,tpr_eqopt,fpr_eqopt,pr_dp,acc_dp,tpr_dp,fpr_dp
-# ---------------------------------------------------------------------------
-# ZeroDivisionError                         Traceback (most recent call last)
-# <ipython-input-8-32b112974a13> in <module>
-#      20         # train (fair) classifiers
-#      21         pr_un,acc_un,tpr_un,fpr_un,pr_eqopt,acc_eqopt,tpr_eqopt,fpr_eqopt,pr_dp,acc_dp,tpr_dp,fpr_dp \
-# ---> 22         = find_Classifier(X_train,y_train,sensitive_features_train)
-#      23 
-#      24         # transitions
-
-# ~/work/long-term-impact-of-fairness-constraints/util.py in find_Classifier(X_train, y_train, sensitive_features_train)
-#     211     predictions_train = estimator.predict(X_train)
-#     212 
-# --> 213     pr_un,acc_un,tpr_un,fpr_un = find_proportions(X_train, sensitive_features_train, predictions_train, y_train)
-#     214     '''
-#     215     # ********EO********
-
-# ~/work/long-term-impact-of-fairness-constraints/util.py in find_proportions(X, sensitive_features, y_pred, y)
-#     169             negative_indices[group] = sensitive_features.index[(sensitive_features == group) & (y == 0)]
-#     170             prob_1 = sum(y_pred[positive_indices[group]])/len(positive_indices[group])
-# --> 171             prob_0 = sum(y_pred[negative_indices[group]])/len(negative_indices[group])
-#     172             acc[group] = 1-((1-prob_1)*len(positive_indices[group]) + prob_0*len(negative_indices[group]))/len(indices[group])
-#     173             tpr[group] = prob_1
-
-# ZeroDivisionError: division by zero
-
-
-
-def dataSelection(X,y,sensitive_features,indices_sub,ratio):
-    index_label0_group0,index_label0_group1,index_label1_group0,index_label1_group1 = indices_sub
-    r_label0_group0,r_label0_group1,r_label1_group0,r_label1_group1 = ratio
-    N = min(len(index_label0_group0)/r_label0_group0,len(index_label0_group1)/r_label0_group1,len(index_label1_group0)/r_label1_group0,len(index_label1_group1)/r_label1_group1)
-    
-    I_label0_group0 = random.sample(index_label0_group0,int(N*r_label0_group0))
-    I_label0_group1 = random.sample(index_label0_group1,int(N*r_label0_group1))
-    I_label1_group0 = random.sample(index_label1_group0,int(N*r_label1_group0))
-    I_label1_group1 = random.sample(index_label1_group1,int(N*r_label1_group1))
-    
-    X_train = X.iloc[I_label0_group0+I_label0_group1+I_label1_group0+I_label1_group1,:]
-    #X_train = X.iloc[I_label0_group0+I_label0_group1+I_label1_group0+I_label1_group1]
-    
-    y_train = y.iloc[I_label0_group0+I_label0_group1+I_label1_group0+I_label1_group1]
-
-    sensitive_features_train = sensitive_features.iloc[I_label0_group0+I_label0_group1+I_label1_group0+I_label1_group1]
-
-
-    return X_train,y_train,sensitive_features_train
-
-
-def balanceEqn(alpha,tpr,fpr,T_label0_pred0,T_label0_pred1,T_label1_pred0,T_label1_pred1):
-    g0 = T_label0_pred0*(1-fpr) + T_label0_pred1*fpr
-    g1 = T_label1_pred0*(1-tpr) + T_label1_pred1*tpr
-    return np.abs((1/alpha - 1) - (1-g1)/g0)
-
 
 def balance(P0,alpha0,alpha1,X,y,sensitive_features,subgroups_indices):
 
