@@ -246,33 +246,3 @@ def _reformat_and_group_data(sensitive_features, labels, scores,sensitive_featur
 
     return pd.DataFrame(data_dict).groupby(sensitive_feature_name)
 
-def balance(P0,alpha0,alpha1,X,y,sensitive_features,subgroups_indices):
-
-    T_label0_pred0_group0 = 0.1
-    T_label0_pred1_group0 = 0.5
-    T_label1_pred0_group0 = 0.5
-    T_label1_pred1_group0 = 0.7
-
-    T_label0_pred0_group1 = 0.3 # "Caucasian"
-    T_label0_pred1_group1 = 0.5
-    T_label1_pred0_group1 = 0.5
-    T_label1_pred1_group1 = 0.9
-
-    ratio = P0*(1-alpha0),(1-P0)*(1-alpha1),P0*alpha0,(1-P0)*alpha1  # r_label0_group0,r_label0_group1,r_label1_group0,r_label1_group1 
-    
-    # sample individuals from 4 sub-groups
-    X_train,y_train,sensitive_features_train = dataSelection(X,y,sensitive_features,subgroups_indices,ratio)
-    # train (fair) classifiers
-    pr_un,acc_un,tpr_un,fpr_un,pr_eqopt,acc_eqopt,tpr_eqopt,fpr_eqopt,pr_dp,acc_dp,tpr_dp,fpr_dp \
-    = find_Classifier(X_train,y_train,sensitive_features_train)
-
-    group1_UN = balanceEqn(alpha1,tpr_un["Caucasian"],fpr_un["Caucasian"],T_label0_pred0_group1,T_label0_pred1_group1,T_label1_pred0_group1,T_label1_pred1_group1)
-    group1_EqOpt = balanceEqn(alpha1,tpr_eqopt["Caucasian"],fpr_eqopt["Caucasian"],T_label0_pred0_group1,T_label0_pred1_group1,T_label1_pred0_group1,T_label1_pred1_group1)
-    group1_DP = balanceEqn(alpha1,tpr_dp["Caucasian"],fpr_dp["Caucasian"],T_label0_pred0_group1,T_label0_pred1_group1,T_label1_pred0_group1,T_label1_pred1_group1)
-    
-    group0_UN = balanceEqn(alpha0,tpr_un["African-American"],fpr_un["African-American"],T_label0_pred0_group0,T_label0_pred1_group0,T_label1_pred0_group0,T_label1_pred1_group0)
-    group0_EqOpt = balanceEqn(alpha0,tpr_eqopt["African-American"],fpr_eqopt["African-American"],T_label0_pred0_group0,T_label0_pred1_group0,T_label1_pred0_group0,T_label1_pred1_group0)
-    group0_DP = balanceEqn(alpha0,tpr_dp["African-American"],fpr_dp["African-American"],T_label0_pred0_group0,T_label0_pred1_group0,T_label1_pred0_group0,T_label1_pred1_group0)
-    
-
-    return group1_UN,group1_EqOpt,group1_DP,group0_UN,group0_EqOpt,group0_DP
