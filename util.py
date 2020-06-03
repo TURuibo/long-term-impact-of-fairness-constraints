@@ -63,6 +63,42 @@ def eva_classifier(X_train,y_train,sensitive_features_train):
  
     return pr_un,acc_un,tpr_un,fpr_un
 
+def eva_classifier_high_th(X_train,y_train,sensitive_features_train):
+    # (Fair) optimal classifier
+    X_train = X_train.reset_index(drop = True)
+    y_train = y_train.reset_index(drop = True)
+    sensitive_features_train = sensitive_features_train.reset_index(drop = True)
+
+
+    # ******** UN ********
+    estimator = LogisticRegression(solver='liblinear')
+    estimator_wrapper = LogisticRegressionAsRegression(estimator).fit(X_train, y_train)
+    estimator_wrapper.fit(X_train, y_train)
+    predictions_s = estimator_wrapper.predict(X_train)>0.8
+    predictions_train= np.zeros(len(predictions_s))
+    predictions_train[predictions_s] = 1
+    pr_un,acc_un,tpr_un,fpr_un = find_proportions(X_train, sensitive_features_train, predictions_train, y_train)
+ 
+    return pr_un,acc_un,tpr_un,fpr_un
+
+def eva_classifier_low_th(X_train,y_train,sensitive_features_train):
+    # (Fair) optimal classifier
+    X_train = X_train.reset_index(drop = True)
+    y_train = y_train.reset_index(drop = True)
+    sensitive_features_train = sensitive_features_train.reset_index(drop = True)
+
+
+    # ******** UN ********
+    estimator = LogisticRegression(solver='liblinear')
+    estimator_wrapper = LogisticRegressionAsRegression(estimator).fit(X_train, y_train)
+    estimator_wrapper.fit(X_train, y_train)
+    predictions_s = estimator_wrapper.predict(X_train)>0.2
+    predictions_train= np.zeros(len(predictions_s))
+    predictions_train[predictions_s] = 1
+    pr_un,acc_un,tpr_un,fpr_un = find_proportions(X_train, sensitive_features_train, predictions_train, y_train)
+ 
+    return pr_un,acc_un,tpr_un,fpr_un
+
 def eva_classifier_dp(X_train,y_train,sensitive_features_train):
     # (Fair) optimal classifier
     X_train = X_train.reset_index(drop = True)
