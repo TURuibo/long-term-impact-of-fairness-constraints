@@ -12,7 +12,7 @@
 clc;
 clear all;
 close all;
-fil = 'invariant/'
+fil = 'variant/'
 data0 = csvread(join([fil,'df_un_0.csv']),1,0);  % skips the first three rows of data
 data1 = csvread(join([fil,'df_un_1.csv']),1,0);  % skips the first three rows of data
 
@@ -57,8 +57,10 @@ figure1 = figure('InvertHardcopy','off','Color',[1 1 1]);
 axes1 = axes('Parent',figure1);
 hold(axes1,'on');
 scale1 = [0.01,0.33,0.4,0.7,0.9];
-n = [1,3,5];
-n_=[5,3,1]
+n = [1,2,3,4,5];
+n_=[5,4,3,2,1]
+n_=[5,4,3,2,1]
+
 % for i = 1:5
 %     pbaspect([1 1 1])
 %     scatter(data0(:,i),data1(:,i),50,'filled','MarkerFaceAlpha',scale1(i),'MarkerFaceColor','b','MarkerEdgeColor','b');
