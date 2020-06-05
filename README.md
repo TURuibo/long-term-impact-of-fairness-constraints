@@ -20,11 +20,8 @@ Step 4: Install the following packages.  fairlearn, tempeh, numpy, pandas, s
 
 Step 5: Restart the Jupyter Notebook and run the code.  
 
-## notebook
+## notebooks
 The synthetic data, FICO, and COMPAS experiments are shown in the folder notebook.  
-
-## notebook_pdf
-We convert the Jupyter notebooks into the pdf version for review.  
 
 ## COMPAS_Fig
 Figures and results of COMPAS experiment.  
