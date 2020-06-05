@@ -28,6 +28,3 @@ Figures and results of COMPAS experiment.
 
 ## FICO_fig
 Figures and results of FICO experiment.   
-
-## data
-The simulated FICO data.  
