@@ -1,15 +1,30 @@
 # long-term-impact-of-fairness-constraints
 This repository can be used for analysing the long-term impact of static fairness constraints.  
 - The functions and classes for our model are in "fico_util.py", "util.py", and "eq_odds.py".  
-- We present the applications of our model with Jupyter Notebook.  
+- We present the applications of our model with Jupyter notebook.  
+- The figure in the FICO experiment is plotted by Matlab. The code is in the folder "FICO_fig".  
 
 ## Installation
-1. Please install the following packages:
-fairlearn, tempeh, numpy, pandas, scipy, sklearn, matplotlib, cvxpy, pynverse, random, copy, progressbar, collections  
-2. Restart the Jupyter Notebook and run the code. 
+Step 1: Install [Python 3](https://www.python.org/downloads/).  
 
-## Notebook
+Step 2: Intall [pip](https://pip.pypa.io/en/stable/installing/).  
+
+```curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py```  
+```python get-pip.py```   
+
+Step 3: Install [Jupyter notebook](https://jupyter.org/install).  
+```pip install notebook```
+
+Step 4: Install the following packages.  fairlearn, tempeh, numpy, pandas, scipy, sklearn, matplotlib, cvxpy, pynverse, random, copy, progressbar, collections  
+```pip install XXX``` (replace XXX with the name of packages)  
+
+Step 5: Restart the Jupyter Notebook and run the code.  
+
+## notebook
 The synthetic data, FICO, and COMPAS experiments are shown in the folder notebook.  
+
+## notebook_pdf
+We convert the Jupyter notebooks into the pdf version for review.  
 
 ## COMPAS_Fig
 Figures and results of COMPAS experiment.  
@@ -18,4 +33,4 @@ Figures and results of COMPAS experiment.
 Figures and results of FICO experiment.   
 
 ## data
-The simulated FICO data.
+The simulated FICO data.  
